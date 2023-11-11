@@ -14,73 +14,30 @@ enum TokenType {
   NULL_CHARACTER,
 };
 
+enum ParserState {
+  IN_QUOTED_STRING,
+  IN_STRING,
+  IN_COMMENT,
+
+};
 typedef struct {
   size_t id_length;
-  size_t id_capacity;
-  char *id;
-} Quoted_string;
+  ParserState state;
+  char id[100];
+} State;
 
 typedef struct {
-  size_t quoted_strings_count;
-  bool in_interpolation;
-  bool in_string;
+  size_t state_depth;
 
-  Quoted_string *quoted_strings[QUOTED_STRING_DEPTH];
+  State *states[QUOTED_STRING_DEPTH];
 } Scanner;
 
-static inline Quoted_string *get_current_quoted_string(Scanner *scanner) {
-  return scanner->quoted_strings[scanner->quoted_strings_count - 1];
+static inline State *get_current_state(Scanner *scanner) {
+  return scanner->states[scanner->state_depth - 1];
 }
 
-static inline void quoted_string_id_clear(Quoted_string *quoted_string) {
+static inline void quoted_string_id_clear(State *quoted_string) {
   quoted_string->id_length = 0;
-}
-
-static inline bool in_quoted_string(Scanner *scanner) {
-  return scanner->quoted_strings_count > 0 && !(scanner->in_interpolation);
-}
-static inline bool in_any_string(Scanner *scanner) {
-  return in_quoted_string(scanner) || scanner->in_string;
-}
-
-static inline void quoted_string_id_resize(Quoted_string *quoted_string,
-                                           size_t min_capacity) {
-  size_t capacity = quoted_string->id_capacity;
-
-  if (capacity >= min_capacity) return;
-
-  if (capacity < 16) capacity = 16;
-  while (capacity < min_capacity) capacity <<= 1;
-
-  quoted_string->id_capacity = capacity;
-  quoted_string->id = realloc(quoted_string->id, capacity * sizeof(char));
-}
-
-static inline void quoted_strings_assign(Scanner *scanner, const char *buffer,
-                                         size_t length) {
-  const char *remaning = buffer;
-  for (size_t i = 0; i < scanner->quoted_strings_count; i++) {
-    Quoted_string *quoted_string = scanner->quoted_strings[i];
-    size_t length = buffer[0];
-    quoted_string->id_length = length;
-    if (length > 0) {
-      quoted_string_id_resize(quoted_string, length);
-      memcpy(quoted_string->id, buffer + 1, length);
-    }
-    remaning = buffer + 1 + length;
-  }
-}
-
-static inline size_t quoted_string_ids_copy(Scanner *scanner, char *buffer) {
-  size_t total_length = 0;
-  for (size_t i = 0; i < scanner->quoted_strings_count; i++) {
-    Quoted_string *quoted_string = scanner->quoted_strings[i];
-    size_t length = quoted_string->id_length;
-    if (length > 0) memcpy(buffer, quoted_string->id, length);
-    buffer += length;
-    total_length += length;
-  }
-  return total_length;
 }
 
 static inline void quoted_string_id_push(Scanner *scanner, char c) {
@@ -118,7 +75,7 @@ static void scan_string(TSLexer *lexer) {
 
 static bool scan_left_quoted_string_delimiter(Scanner *scanner,
                                               TSLexer *lexer) {
-  scanner->quoted_strings_count ++;
+  scanner->quoted_strings_count++;
   Quoted_string *quoted_string = get_current_quoted_string(scanner);
   // Ensure we remove any leftovers from previous uses
   quoted_string_id_clear(quoted_string);
@@ -128,11 +85,10 @@ static bool scan_left_quoted_string_delimiter(Scanner *scanner,
     advance(lexer);
   }
 
-  if (lexer->lookahead != '|'){
+  if (lexer->lookahead != '|') {
     scanner->quoted_strings_count--;
-     return false;
+    return false;
   }
-
 
   advance(lexer);
   return true;
@@ -481,9 +437,8 @@ static bool scan(Scanner *scanner, TSLexer *lexer, const bool *valid_symbols) {
   if (!in_any_string(scanner) && lexer->lookahead == '(') {
     advance(lexer);
     if (lexer->lookahead == '*') {
-    
-    advance(lexer);
-    return false;
+      advance(lexer);
+      return false;
     }
   }
   if (!in_any_string(scanner) && valid_symbols[STRING_DELIM] &&
