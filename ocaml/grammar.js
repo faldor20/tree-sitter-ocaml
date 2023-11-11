@@ -73,13 +73,13 @@ module.exports = grammar({
     $._simple_type,
     $._tuple_type,
     $._type,
+    $._constant,
     $._simple_expression,
     $._expression,
     $._sequence_expression,
     $._simple_pattern,
     $._pattern,
     $._binding_pattern,
-    $._constant,
     $._signed_constant,
     $._infix_operator
   ],
@@ -104,6 +104,20 @@ module.exports = grammar({
         repeat(';;')
       )
     ),
+    //TODO use the string and string quote parsers to parse the unwanted tokens out 
+  comment: $=>seq(
+    '(*',
+      repeat(
+        choice(
+          alias($._string,"anon"),
+          alias($.quoted_string,"anon"),
+          alias($.quoted_extension,"anon"),
+          /[^*]|[*][^)]/
+        )
+      ),
+      '*)'
+    ),
+
 
     expression_item: $ => seq(
       $._sequence_expression,
@@ -1717,6 +1731,8 @@ module.exports = grammar({
     ),
 
     string: $ => seq('"', optional($.string_content), '"'),
+    _string_content:$=>alias($.string_content,"content"),
+    _string: $ => seq('"', optional($._string_content), '"'),
 
     string_content: $ => repeat1(choice(
       token.immediate(/\s/),
@@ -1730,24 +1746,36 @@ module.exports = grammar({
       $.pretty_printing_indication
     )),
 
-    quoted_string: $ => seq('{', $._quoted_string, '}'),
+    //TODO for some reason this won't match {id||id}, when i put only that in it does work though, maybe i should try to simplify?
+    //TODO okay this is impossible i need to go back to the stateful parser and just impliment something identical to what i wrote in ocaml with a stack of enums or something 
 
-    _quoted_string: $ => seq(
-      $._left_quoted_string_delimiter,
-      optional($.quoted_string_content),
-      $._right_quoted_string_delimiter,
-    ),
+    _quote_string_start:$=>seq('{',optional($._identifier),'|'),
+    _quote_string_end:$=>seq('|',optional($._identifier),'}'),
+
+    quoted_string: $ => seq($._quote_string_start, optional($.quoted_string_content), $._quote_string_end),
+    // quoted_string: $ => seq('{',/[a-z]*/,'|',optional($.quoted_string_content) ,'|',/[a-z]*/,'}' ),
+
+    _quoted_string: $ => seq(optional($._identifier),'|', $.quoted_string_content, '|',optional($._identifier)),
 
     quoted_string_content: $ => repeat1(choice(
+      $.string_interpolation,
       token.immediate(/\s/),
       token.immediate(/\[@/),
       /[^%@|]+|%|@|\|/,
       $._null,
       $.conversion_specification,
-      $.pretty_printing_indication
+      $.pretty_printing_indication,
     )),
 
-    escape_sequence: $ => choice(
+    interpolation_type: $=>$._capitalized_identifier,
+    string_interpolation: $ => seq(
+      '%',
+        optional($.interpolation_type),
+      '{',
+        $._expression,
+      '}',
+    ),
+        escape_sequence: $ => choice(
       /\\[\\"'ntbr ]/,
       /\\[0-9][0-9][0-9]/,
       /\\x[0-9A-Fa-f][0-9A-Fa-f]/,
@@ -1931,9 +1959,6 @@ module.exports = grammar({
   },
 
   externals: $ => [
-    $.comment,
-    $._left_quoted_string_delimiter,
-    $._right_quoted_string_delimiter,
     '"',
     $.line_number_directive,
     $._null

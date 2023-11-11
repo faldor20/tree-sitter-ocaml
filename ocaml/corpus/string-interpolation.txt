@@ -1,0 +1,57 @@
+===========================
+Simple Interpolation
+===========================
+
+{| %{hi} |};;
+
+---
+
+(compilation_unit
+  (expression_item
+    (quoted_string
+      (quoted_string_content
+        (string_interpolation
+          (value_path
+            (value_name)))))))
+
+===========================
+Nested interpolation
+===========================
+
+{b|<div> %{let a={this|hi|this}in a } |b};;
+
+---
+    (compilation_unit
+      (expression_item
+        (quoted_string
+          (quoted_string_content
+            (string_interpolation
+              (let_expression
+                (value_definition
+                  (let_binding
+                    (value_name)
+                    (quoted_string
+                      (quoted_string_content))))
+                (value_path
+                  (value_name))))))))
+===========================
+Interpolation with module
+===========================
+
+{|<div> %Int{ let a=1 in a } |};;
+
+---
+
+ (compilation_unit
+      (expression_item
+        (quoted_string
+          (quoted_string_content
+            (string_interpolation
+              (interpolation_type)
+              (let_expression
+                (value_definition
+                  (let_binding
+                    (value_name)
+                    (number)))
+                (value_path
+                  (value_name))))))))

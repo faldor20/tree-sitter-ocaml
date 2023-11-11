@@ -1,64 +1,93 @@
 #ifndef TREE_SITTER_OCAML_SCANNER_H_
 #define TREE_SITTER_OCAML_SCANNER_H_
 
+#define QUOTED_STRING_DEPTH 20
+
 #include <assert.h>
 #include <string.h>
 #include <tree_sitter/parser.h>
 #include <wctype.h>
 
 enum TokenType {
-  COMMENT,
-  LEFT_QUOTED_STRING_DELIM,
-  RIGHT_QUOTED_STRING_DELIM,
   STRING_DELIM,
   LINE_NUMBER_DIRECTIVE,
-  NULL_CHARACTER
+  NULL_CHARACTER,
 };
 
 typedef struct {
+  size_t id_length;
+  size_t id_capacity;
+  char *id;
+} Quoted_string;
+
+typedef struct {
+  size_t quoted_strings_count;
+  bool in_interpolation;
   bool in_string;
 
-  size_t quoted_string_id_length;
-  size_t quoted_string_id_capacity;
-  char *quoted_string_id;
+  Quoted_string *quoted_strings[QUOTED_STRING_DEPTH];
 } Scanner;
 
-static inline void quoted_string_id_clear(Scanner *scanner) {
-  scanner->quoted_string_id_length = 0;
+static inline Quoted_string *get_current_quoted_string(Scanner *scanner) {
+  return scanner->quoted_strings[scanner->quoted_strings_count - 1];
 }
 
-static inline void quoted_string_id_resize(Scanner *scanner,
+static inline void quoted_string_id_clear(Quoted_string *quoted_string) {
+  quoted_string->id_length = 0;
+}
+
+static inline bool in_quoted_string(Scanner *scanner) {
+  return scanner->quoted_strings_count > 0 && !(scanner->in_interpolation);
+}
+static inline bool in_any_string(Scanner *scanner) {
+  return in_quoted_string(scanner) || scanner->in_string;
+}
+
+static inline void quoted_string_id_resize(Quoted_string *quoted_string,
                                            size_t min_capacity) {
-  size_t capacity = scanner->quoted_string_id_capacity;
+  size_t capacity = quoted_string->id_capacity;
 
   if (capacity >= min_capacity) return;
 
   if (capacity < 16) capacity = 16;
   while (capacity < min_capacity) capacity <<= 1;
 
-  scanner->quoted_string_id_capacity = capacity;
-  scanner->quoted_string_id =
-      realloc(scanner->quoted_string_id, capacity * sizeof(char));
+  quoted_string->id_capacity = capacity;
+  quoted_string->id = realloc(quoted_string->id, capacity * sizeof(char));
 }
 
-static inline void quoted_string_id_assign(Scanner *scanner, const char *buffer,
-                                           size_t length) {
-  if (length > 0) {
-    quoted_string_id_resize(scanner, length);
-    memcpy(scanner->quoted_string_id, buffer, length);
+static inline void quoted_strings_assign(Scanner *scanner, const char *buffer,
+                                         size_t length) {
+  const char *remaning = buffer;
+  for (size_t i = 0; i < scanner->quoted_strings_count; i++) {
+    Quoted_string *quoted_string = scanner->quoted_strings[i];
+    size_t length = buffer[0];
+    quoted_string->id_length = length;
+    if (length > 0) {
+      quoted_string_id_resize(quoted_string, length);
+      memcpy(quoted_string->id, buffer + 1, length);
+    }
+    remaning = buffer + 1 + length;
   }
-  scanner->quoted_string_id_length = length;
 }
 
-static inline size_t quoted_string_id_copy(Scanner *scanner, char *buffer) {
-  size_t length = scanner->quoted_string_id_length;
-  if (length > 0) memcpy(buffer, scanner->quoted_string_id, length);
-  return length;
+static inline size_t quoted_string_ids_copy(Scanner *scanner, char *buffer) {
+  size_t total_length = 0;
+  for (size_t i = 0; i < scanner->quoted_strings_count; i++) {
+    Quoted_string *quoted_string = scanner->quoted_strings[i];
+    size_t length = quoted_string->id_length;
+    if (length > 0) memcpy(buffer, quoted_string->id, length);
+    buffer += length;
+    total_length += length;
+  }
+  return total_length;
 }
 
 static inline void quoted_string_id_push(Scanner *scanner, char c) {
-  quoted_string_id_resize(scanner, scanner->quoted_string_id_length + 1);
-  scanner->quoted_string_id[scanner->quoted_string_id_length++] = c;
+  scanner->quoted_strings_count += 1;
+  Quoted_string *quoted_string = get_current_quoted_string(scanner);
+  quoted_string_id_resize(quoted_string, quoted_string->id_length + 1);
+  quoted_string->id[quoted_string->id_length++] = c;
 }
 
 static inline void advance(TSLexer *lexer) { lexer->advance(lexer, false); }
@@ -89,31 +118,78 @@ static void scan_string(TSLexer *lexer) {
 
 static bool scan_left_quoted_string_delimiter(Scanner *scanner,
                                               TSLexer *lexer) {
-  quoted_string_id_clear(scanner);
+  scanner->quoted_strings_count ++;
+  Quoted_string *quoted_string = get_current_quoted_string(scanner);
+  // Ensure we remove any leftovers from previous uses
+  quoted_string_id_clear(quoted_string);
 
   while (iswlower(lexer->lookahead) || lexer->lookahead == '_') {
     quoted_string_id_push(scanner, lexer->lookahead);
     advance(lexer);
   }
 
-  if (lexer->lookahead != '|') return false;
+  if (lexer->lookahead != '|'){
+    scanner->quoted_strings_count--;
+     return false;
+  }
+
 
   advance(lexer);
-  scanner->in_string = true;
   return true;
 }
 
 static bool scan_right_quoted_string_delimiter(Scanner *scanner,
                                                TSLexer *lexer) {
-  for (size_t i = 0; i < scanner->quoted_string_id_length; i++) {
-    if (lexer->lookahead != scanner->quoted_string_id[i]) return false;
+  Quoted_string *quoted_string = get_current_quoted_string(scanner);
+  for (size_t i = 0; i < quoted_string->id_length; i++) {
+    if (lexer->lookahead != quoted_string->id[i]) return false;
     advance(lexer);
   }
-
   if (lexer->lookahead != '}') return false;
 
-  scanner->in_string = false;
+  scanner->quoted_strings_count -= 1;
   return true;
+}
+static bool scan_right_interpolation_delim(Scanner *scanner, TSLexer *lexer) {
+  scanner->in_interpolation = false;
+  return true;
+}
+static bool scan_left_interpolation_delim(Scanner *scanner, TSLexer *lexer) {
+  if (iswupper(lexer->lookahead)) {
+    advance(lexer);
+    while (iswlower(lexer->lookahead)) {
+      advance(lexer);
+    }
+  }
+
+  if (lexer->lookahead != '{') return false;
+
+  advance(lexer);
+  return true;
+}
+
+static bool scan_interpolation(Scanner *scanner, TSLexer *lexer) {
+  if (!scan_left_interpolation_delim(scanner, lexer)) return false;
+  scanner->in_interpolation = true;
+
+  for (;;) {
+    switch (lexer->lookahead) {
+      // TODO this should block while we scan all the consents of the
+      // interpolation and then re can return
+      break;
+      case '}':
+        scanner->in_interpolation = false;
+        advance(lexer);
+        return true;
+        break;
+      case '\0':
+        if (eof(lexer)) return false;
+        advance(lexer);
+        break;
+      default:
+        advance(lexer);
+    }
+  }
 }
 
 static bool scan_quoted_string(Scanner *scanner, TSLexer *lexer) {
@@ -121,6 +197,11 @@ static bool scan_quoted_string(Scanner *scanner, TSLexer *lexer) {
 
   for (;;) {
     switch (lexer->lookahead) {
+      // TODO this should block while we scan all the consents of the
+      // interpolation and then re can return
+      case '%':
+        scan_interpolation(scanner, lexer);
+        break;
       case '|':
         advance(lexer);
         if (scan_right_quoted_string_delimiter(scanner, lexer)) return true;
@@ -303,45 +384,54 @@ static bool scan_comment(Scanner *scanner, TSLexer *lexer) {
 
 static Scanner *create() {
   Scanner *scanner = calloc(1, sizeof(Scanner));
+  for (size_t i = 0; i < QUOTED_STRING_DEPTH; i++) {
+    scanner->quoted_strings[i] = calloc(1, sizeof(Quoted_string));
+  }
   return scanner;
 }
 
 static void destroy(Scanner *scanner) {
-  free(scanner->quoted_string_id);
+  for (size_t i = 0; i < QUOTED_STRING_DEPTH; i++) {
+    free(scanner->quoted_strings[i]->id);
+    free(scanner->quoted_strings[i]);
+  }
   free(scanner);
+}
+static size_t total_quoted_string_length(Scanner *scanner) {
+  size_t length = 0;
+  for (size_t i = 0; i < scanner->quoted_strings_count; i++) {
+    Quoted_string *quoted_string = scanner->quoted_strings[i];
+    length += quoted_string->id_length;
+  }
+  return length;
 }
 
 static unsigned serialize(Scanner *scanner, char *buffer) {
-  buffer[0] = scanner->in_string;
-  if (scanner->quoted_string_id_length >=
-      TREE_SITTER_SERIALIZATION_BUFFER_SIZE) {
+  buffer[0] = scanner->quoted_strings_count;
+  buffer[1] = scanner->in_string;
+  buffer[2] = scanner->in_interpolation;
+
+  size_t length = total_quoted_string_length(scanner);
+  if (length >= TREE_SITTER_SERIALIZATION_BUFFER_SIZE) {
     return 1;
   }
-  return quoted_string_id_copy(scanner, buffer + 1) + 1;
+  return quoted_string_ids_copy(scanner, buffer + 3) + 3;
 }
 
 static void deserialize(Scanner *scanner, const char *buffer, unsigned length) {
   if (length > 0) {
-    scanner->in_string = buffer[0];
-    quoted_string_id_assign(scanner, buffer + 1, length - 1);
+    scanner->quoted_strings_count = buffer[0];
+    scanner->in_string = buffer[1];
+    scanner->in_interpolation = buffer[2];
+    quoted_strings_assign(scanner, buffer + 3, length - 3);
   } else {
+    scanner->in_interpolation = false;
     scanner->in_string = false;
-    quoted_string_id_clear(scanner);
+    scanner->quoted_strings_count = 0;
   }
 }
 
 static bool scan(Scanner *scanner, TSLexer *lexer, const bool *valid_symbols) {
-  if (valid_symbols[LEFT_QUOTED_STRING_DELIM] &&
-      (iswlower(lexer->lookahead) || lexer->lookahead == '_' ||
-       lexer->lookahead == '|')) {
-    lexer->result_symbol = LEFT_QUOTED_STRING_DELIM;
-    return scan_left_quoted_string_delimiter(scanner, lexer);
-  }
-  if (valid_symbols[RIGHT_QUOTED_STRING_DELIM] && (lexer->lookahead == '|')) {
-    advance(lexer);
-    lexer->result_symbol = RIGHT_QUOTED_STRING_DELIM;
-    return scan_right_quoted_string_delimiter(scanner, lexer);
-  }
   if (scanner->in_string && valid_symbols[STRING_DELIM] &&
       lexer->lookahead == '"') {
     advance(lexer);
@@ -354,7 +444,7 @@ static bool scan(Scanner *scanner, TSLexer *lexer, const bool *valid_symbols) {
     skip(lexer);
   }
 
-  if (!scanner->in_string && lexer->lookahead == '#' &&
+  if (!in_any_string(scanner) && lexer->lookahead == '#' &&
       lexer->get_column(lexer) == 0) {
     advance(lexer);
 
@@ -388,12 +478,15 @@ static bool scan(Scanner *scanner, TSLexer *lexer, const bool *valid_symbols) {
     lexer->result_symbol = LINE_NUMBER_DIRECTIVE;
     return true;
   }
-  if (!scanner->in_string && lexer->lookahead == '(') {
+  if (!in_any_string(scanner) && lexer->lookahead == '(') {
     advance(lexer);
-    lexer->result_symbol = COMMENT;
-    return scan_comment(scanner, lexer);
+    if (lexer->lookahead == '*') {
+    
+    advance(lexer);
+    return false;
+    }
   }
-  if (!scanner->in_string && valid_symbols[STRING_DELIM] &&
+  if (!in_any_string(scanner) && valid_symbols[STRING_DELIM] &&
       lexer->lookahead == '"') {
     advance(lexer);
     scanner->in_string = true;
