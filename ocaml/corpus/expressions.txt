@@ -29,6 +29,17 @@ Constants focus
 {id||id};;
 {id|{|}id}|idd||id};;
 ----
+
+
+    (compilation_unit
+      (expression_item
+        (quoted_string
+          (quoted_string_content)))
+      (expression_item
+        (quoted_string))
+      (expression_item
+        (quoted_string
+          (quoted_string_content))))
 ===========================
 Constants
 ===========================

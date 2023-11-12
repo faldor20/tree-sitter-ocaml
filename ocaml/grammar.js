@@ -112,7 +112,13 @@ module.exports = grammar({
           alias($._string,"anon"),
           alias($.quoted_string,"anon"),
           alias($.quoted_extension,"anon"),
-          $._comment_body,
+          alias($.character,"anon"),
+          //to make this more efficent we grab big chunks till we hit any of the chars that might start one of the other possibilities
+          /[^{('"*]+/,    
+          //This is still needed because if all the other features aren't present we still need to be able to parse over a {('" 
+          /[^*]/,    
+           /\*[^)]/         
+
         )
       ),
       '*)'
@@ -1774,9 +1780,10 @@ module.exports = grammar({
 
     interpolation_type: $=>$._capitalized_identifier,
     string_interpolation: $ => seq(
-      $._left_interpolation_delim,
+      //the alias is used for hightlighting queries
+      alias($._left_interpolation_delim,"%{"),
         $._expression,
-      $._right_interpolation_delim,
+      alias($._right_interpolation_delim,"}"),
     ),
 
     // string_interpolation: $ => seq(

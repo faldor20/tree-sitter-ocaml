@@ -149,3 +149,8 @@
 ;---------
 
 [(comment) (line_number_directive) (directive) (shebang)] @comment
+
+
+((string_interpolation
+
+["%{" "}"] @punctuation.special ) @embedded)

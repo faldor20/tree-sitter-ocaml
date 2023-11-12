@@ -130,7 +130,7 @@ static bool scan_left_interpolation_delim(Scanner *scanner, TSLexer *lexer) {
   // scan the Module name if it exists
   if (iswupper(lexer->lookahead)) {
     advance(lexer);
-    while (iswlower(lexer->lookahead)) {
+    while (iswalpha(lexer->lookahead)) {
       advance(lexer);
     }
   }
@@ -434,12 +434,42 @@ static inline bool parse_start_string(Scanner *scanner, TSLexer *lexer) {
   lexer->result_symbol = STRING_DELIM;
   return true;
 }
+static inline bool scan_comment_body(Scanner *scanner, TSLexer *lexer) {
+  // if we might be coming to the end of the comment
+  if (next_is(lexer, '*')) {
+    mark_end(lexer);
+    advance(lexer);
+    if (next_is(lexer, ')')) {
+      return false;
+    }
+    // we need to move the end else we will ge stuck here
+    mark_end(lexer);
+    return true;
+  } else {
+    advance(lexer);
+    while (
+        !(next_is(lexer, '*')||next_is(lexer, '\'')||next_is(lexer,'\'' )  || next_is(lexer, '"') || next_is(lexer, '{')) ||
+        eof(lexer)) {
+      if (next_is(lexer, '(')) {
+        mark_end(lexer);
+        advance(lexer);
+        if (next_is(lexer, '*')) {
+          return true;
+        }
+
+      } else {
+        advance(lexer);
+      }
+    }
+    mark_end(lexer);
+
+    return true;
+  }
+}
 
 static bool scan(Scanner *scanner, TSLexer *lexer, const bool *valid_symbols) {
-  if(eof(lexer)){
-    return false;
-  }
-  while (iswspace(lexer->lookahead)) {
+
+    while (iswspace(lexer->lookahead)) {
     skip(lexer);
   }
   enum ParserState p_state = IN_NOTHING;
@@ -482,7 +512,7 @@ static bool scan(Scanner *scanner, TSLexer *lexer, const bool *valid_symbols) {
         lexer->result_symbol = LEFT_QUOTED_STRING_DELIM;
         return parse_left_quoted_string_delimiter(scanner, lexer);
       }
-    break;
+      break;
     case IN_INTERPOLATION:
       if (valid_symbols[RIGHT_INTERPOLATION_DELIM] && next_is(lexer, '}')) {
         advance(lexer);
@@ -492,6 +522,7 @@ static bool scan(Scanner *scanner, TSLexer *lexer, const bool *valid_symbols) {
     case IN_NOTHING:
 
       if (valid_symbols[COMMENT_START] && next_is(lexer, '(')) {
+        
         advance(lexer);
         if (next_is(lexer, '*')) {
           advance(lexer);
@@ -512,29 +543,13 @@ static bool scan(Scanner *scanner, TSLexer *lexer, const bool *valid_symbols) {
       if (next_is(lexer, '#') && lexer->get_column(lexer) == 0) {
         return try_parse_line_number_directive(scanner, lexer);
       }
-      if (valid_symbols[COMMENT_BODY]&& !(next_is(lexer,'{' )||next_is(lexer,'"' ))) {
-        // TODO i should actually be able to keep advancing untill i hit either
-        // " { or *
+      // TODO: i may need to stop this from reading if we see a '(' because that
+      // could signal another comment's start
+      if (false&&valid_symbols[COMMENT_BODY] &&
+          !(next_is(lexer, '\'') || next_is(lexer, '{')||next_is(lexer,'(') ||
+            next_is(lexer, '"'))) {
         lexer->result_symbol = COMMENT_BODY;
-        // if we might be coming to the end of the comment
-        if (next_is(lexer, '*')) {
-          mark_end(lexer);
-          advance(lexer);
-          if (next_is(lexer, ')')) {
-            return false;
-          }
-          // we need to move the end else we will ge stuck here
-          mark_end(lexer);
-          return true;
-        } else {
-          advance(lexer);
-          // while (!(next_is(lexer, '*') || next_is(lexer, '"') ||
-          //          next_is(lexer, '{'))) {
-          //   advance(lexer);
-          // }
-
-          return true;
-        }
+      return scan_comment_body(scanner,lexer );
       }
       if (valid_symbols[NULL_CHARACTER] && next_is(lexer, '\0') &&
           !eof(lexer)) {

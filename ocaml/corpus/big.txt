@@ -10,6 +10,7 @@ open Ppx_string;;
 oaiersntoiaersnt
  {|now  a quoted string (*) |}
 let a = 10;;
+
   *)
 
 {| %{hi} |};;
@@ -50,3 +51,29 @@ let a = 10;;
             (string_interpolation
               (value_path
                 (value_name)))))))
+
+
+===========================
+quoted complex
+===========================
+
+open Core;;
+open Ppx_string;;
+
+
+{|hi %{let a= 10}|}
+--
+()
+===========================
+
+===========================
+comment escapes
+===========================
+(*
+(** hit*)
+(hi)
+
+  *)
+let a= 10;;
+---
+

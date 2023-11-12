@@ -9,6 +9,43 @@ Comments
 *)
 ( *)
 
+(* 
+module List2 = struct
+  (** Returns a list with up to n items from the input list *)
+  let take n list =
+      let rec loop remaining newList  = function
+      |[]-> newList|>List.rev
+      |_ when (remaining=0)->newList|>List.rev
+      |head::tail-> loop (remaining-1) (head::newList) tail
+      in
+    loop n [] list 
+  
+end
+module Printers = struct
+  open Printf;;
+  (**prints the first 10 items of the list.
+   Unless printall is set to true in which cse it prints them all*)
+  let printList ?(printAll=false) list  =
+    let newList =
+      if printAll then list else list|>List2.take 10 in
+    let truncated=(newList|>List.length) <> (list |>List.length) in
+
+    newList
+    |>String.concat ";"
+    |>sprintf (if not truncated then"[%s]" else "[%s;...]")
+  ;; 
+  (**Prints a list of ints int format [1,2,3]*)
+  let intList ?(printAll=false)  list  = 
+    list
+    |>List.map string_of_int 
+    |>printList ~printAll 
+
+ let stringTupleList list =
+   list|>List.iter (fun (x,y)->Printf.printf "%s %s \n" x y)
+end
+
+*)
+let a= 10;;
 ---
 
 (compilation_unit
@@ -36,15 +73,7 @@ Strings and comments
 Characters and comments
 ==============================
 
-(* '"' *)
-(* f' '"' *)
-(*  *)
 (* '\o170' '"' *)
-(* '\'"' *)
-(* '\" " *)
-(* '" " *)
-(* '*)
-x
 
 ---
 
@@ -72,8 +101,13 @@ Quoted strings and comments
 ---
 
 (compilation_unit
-  (comment)
-  (comment)
-  (comment)
-  (expression_item (quoted_string (quoted_string_content)))
+      (comment
+        (quoted_string_content))
+      (comment
+        (attribute_id)
+        (quoted_string_content))
+      (comment
+        (attribute_id)
+        (quoted_string_content))
+          (expression_item (quoted_string (quoted_string_content)))
   (expression_item (quoted_string (quoted_string_content))))

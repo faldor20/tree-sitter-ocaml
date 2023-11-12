@@ -1052,6 +1052,10 @@
           "named": true
         },
         {
+          "type": "character_content",
+          "named": true
+        },
+        {
           "type": "quoted_string_content",
           "named": true
         }
@@ -5046,6 +5050,10 @@
   },
   {
     "type": "%",
+    "named": false
+  },
+  {
+    "type": "%{",
     "named": false
   },
   {
