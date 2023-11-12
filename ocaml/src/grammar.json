@@ -132,6 +132,74 @@
         }
       ]
     },
+    "comment": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "_comment_start"
+        },
+        {
+          "type": "REPEAT",
+          "content": {
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "PREC",
+                "value": 10,
+                "content": {
+                  "type": "ALIAS",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "_string"
+                  },
+                  "named": false,
+                  "value": "anon"
+                }
+              },
+              {
+                "type": "PREC",
+                "value": 5,
+                "content": {
+                  "type": "ALIAS",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "quoted_string"
+                  },
+                  "named": false,
+                  "value": "anon"
+                }
+              },
+              {
+                "type": "PREC",
+                "value": 11,
+                "content": {
+                  "type": "ALIAS",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "quoted_extension"
+                  },
+                  "named": false,
+                  "value": "anon"
+                }
+              },
+              {
+                "type": "PREC",
+                "value": 0,
+                "content": {
+                  "type": "SYMBOL",
+                  "name": "_comment_body"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "type": "STRING",
+          "value": "*)"
+        }
+      ]
+    },
     "expression_item": {
       "type": "SEQ",
       "members": [
@@ -8932,6 +9000,40 @@
         }
       ]
     },
+    "_string_content": {
+      "type": "ALIAS",
+      "content": {
+        "type": "SYMBOL",
+        "name": "string_content"
+      },
+      "named": false,
+      "value": "content"
+    },
+    "_string": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "\""
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "_string_content"
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
+          "type": "STRING",
+          "value": "\""
+        }
+      ]
+    },
     "string_content": {
       "type": "REPEAT1",
       "content": {
@@ -9014,7 +9116,7 @@
       "members": [
         {
           "type": "SYMBOL",
-          "name": "_left_quoted_string_delimiter"
+          "name": "_left_quoted_string_delim"
         },
         {
           "type": "CHOICE",
@@ -9030,7 +9132,7 @@
         },
         {
           "type": "SYMBOL",
-          "name": "_right_quoted_string_delimiter"
+          "name": "_right_quoted_string_delim"
         }
       ]
     },
@@ -9039,6 +9141,10 @@
       "content": {
         "type": "CHOICE",
         "members": [
+          {
+            "type": "SYMBOL",
+            "name": "string_interpolation"
+          },
           {
             "type": "IMMEDIATE_TOKEN",
             "content": {
@@ -9071,6 +9177,27 @@
           }
         ]
       }
+    },
+    "interpolation_type": {
+      "type": "SYMBOL",
+      "name": "_capitalized_identifier"
+    },
+    "string_interpolation": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "_left_interpolation_delim"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "_expression"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "_right_interpolation_delim"
+        }
+      ]
     },
     "escape_sequence": {
       "type": "CHOICE",
@@ -10562,19 +10689,31 @@
   "externals": [
     {
       "type": "SYMBOL",
-      "name": "comment"
+      "name": "_left_interpolation_delim"
     },
     {
       "type": "SYMBOL",
-      "name": "_left_quoted_string_delimiter"
+      "name": "_right_interpolation_delim"
     },
     {
       "type": "SYMBOL",
-      "name": "_right_quoted_string_delimiter"
+      "name": "_left_quoted_string_delim"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_right_quoted_string_delim"
     },
     {
       "type": "STRING",
       "value": "\""
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_comment_start"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_comment_body"
     },
     {
       "type": "SYMBOL",

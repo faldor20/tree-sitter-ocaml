@@ -35,6 +35,29 @@ Nested interpolation
                 (value_path
                   (value_name))))))))
 ===========================
+2x Nested interpolation
+===========================
+
+{b|<div> %{let a={this| %{"string"} |this}in a } |b};;
+
+---
+  (compilation_unit
+      (expression_item
+        (quoted_string
+          (quoted_string_content
+            (string_interpolation
+              (let_expression
+                (value_definition
+                  (let_binding
+                    (value_name)
+                    (quoted_string
+                      (quoted_string_content
+                        (string_interpolation
+                          (string
+                            (string_content)))))))
+                (value_path
+                  (value_name))))))))
+===========================
 Interpolation with module
 ===========================
 
@@ -42,12 +65,11 @@ Interpolation with module
 
 ---
 
- (compilation_unit
+    (compilation_unit
       (expression_item
         (quoted_string
           (quoted_string_content
             (string_interpolation
-              (interpolation_type)
               (let_expression
                 (value_definition
                   (let_binding
