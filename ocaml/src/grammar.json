@@ -145,51 +145,35 @@
             "type": "CHOICE",
             "members": [
               {
-                "type": "PREC",
-                "value": 10,
-                "content": {
-                  "type": "ALIAS",
-                  "content": {
-                    "type": "SYMBOL",
-                    "name": "_string"
-                  },
-                  "named": false,
-                  "value": "anon"
-                }
-              },
-              {
-                "type": "PREC",
-                "value": 5,
-                "content": {
-                  "type": "ALIAS",
-                  "content": {
-                    "type": "SYMBOL",
-                    "name": "quoted_string"
-                  },
-                  "named": false,
-                  "value": "anon"
-                }
-              },
-              {
-                "type": "PREC",
-                "value": 11,
-                "content": {
-                  "type": "ALIAS",
-                  "content": {
-                    "type": "SYMBOL",
-                    "name": "quoted_extension"
-                  },
-                  "named": false,
-                  "value": "anon"
-                }
-              },
-              {
-                "type": "PREC",
-                "value": 0,
+                "type": "ALIAS",
                 "content": {
                   "type": "SYMBOL",
-                  "name": "_comment_body"
-                }
+                  "name": "_string"
+                },
+                "named": false,
+                "value": "anon"
+              },
+              {
+                "type": "ALIAS",
+                "content": {
+                  "type": "SYMBOL",
+                  "name": "quoted_string"
+                },
+                "named": false,
+                "value": "anon"
+              },
+              {
+                "type": "ALIAS",
+                "content": {
+                  "type": "SYMBOL",
+                  "name": "quoted_extension"
+                },
+                "named": false,
+                "value": "anon"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "_comment_body"
               }
             ]
           }

@@ -1,0 +1,52 @@
+ 
+===========================
+comments with quoted
+===========================
+open Core;;
+open Ppx_string;;
+
+
+(* hi this is a comment test
+oaiersntoiaersnt
+ {|now  a quoted string (*) |}
+let a = 10;;
+  *)
+
+{| %{hi} |};;
+{| %{hi}|};;
+{| {hi}|};;
+
+{|%{hi }|};;
+
+---
+
+   (compilation_unit
+      (open_module
+        (module_path
+          (module_name)))
+      (open_module
+        (module_path
+          (module_name)))
+      (comment
+        (quoted_string_content))
+      (expression_item
+        (quoted_string
+          (quoted_string_content
+            (string_interpolation
+              (value_path
+                (value_name))))))
+      (expression_item
+        (quoted_string
+          (quoted_string_content
+            (string_interpolation
+              (value_path
+                (value_name))))))
+      (expression_item
+        (quoted_string
+          (quoted_string_content)))
+      (expression_item
+        (quoted_string
+          (quoted_string_content
+            (string_interpolation
+              (value_path
+                (value_name)))))))

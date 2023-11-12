@@ -144,7 +144,6 @@ static bool scan_left_interpolation_delim(Scanner *scanner, TSLexer *lexer) {
 
 static bool scan_right_interpolation_delim(Scanner *scanner, TSLexer *lexer) {
   remove_state(scanner);
-  advance(lexer);
   return true;
 }
 
