@@ -153,4 +153,5 @@
 
 ((string_interpolation
 
+
 ["${" "}"] @punctuation.special ) @embedded)

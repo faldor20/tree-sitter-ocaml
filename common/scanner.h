@@ -1,7 +1,7 @@
 #ifndef TREE_SITTER_OCAML_SCANNER_H_
 #define TREE_SITTER_OCAML_SCANNER_H_
 
-#define QUOTED_STRING_DEPTH 20
+#define QUOTED_STRING_DEPTH 10
 
 #include <assert.h>
 #include <string.h>
@@ -11,6 +11,7 @@
 enum TokenType {
   LEFT_QUOTED_STRING_DELIM,
   RIGHT_QUOTED_STRING_DELIM,
+  START_INTERPOLATION,
   LINE_NUMBER_DIRECTIVE,
   NULL_CHARACTER,
 };
@@ -23,7 +24,7 @@ enum ParserState {
 typedef struct {
   size_t id_length;
   enum ParserState state;
-  char id[100];
+  char id[1000];
 } Scan_state;
 
 typedef struct {
@@ -195,6 +196,22 @@ static inline bool try_parse_line_number_directive(Scanner *scanner,
   return true;
 }
 
+
+static bool scan_left_interpolation_delim(Scanner *scanner, TSLexer *lexer) {
+  //because we only want to know if we are starting the interpolation we mark this as the end 
+  mark_end(lexer);
+  // scan the Module name if it exists
+  if (iswupper(lexer->lookahead)) {
+    advance(lexer);
+    while (iswalpha(lexer->lookahead)) {
+      advance(lexer);
+    }
+  }
+  if (lexer->lookahead != '{') return false;
+  advance(lexer);
+  return true;
+}
+
 static bool scan(Scanner *scanner, TSLexer *lexer, const bool *valid_symbols) {
   while (iswspace(lexer->lookahead)) {
     skip(lexer);
@@ -205,27 +222,39 @@ static bool scan(Scanner *scanner, TSLexer *lexer, const bool *valid_symbols) {
     p_state = get_current_state(scanner)->state;
   }
 
-  if (valid_symbols[RIGHT_QUOTED_STRING_DELIM] && next_is(lexer, '|')) {
-    advance(lexer);
-    lexer->result_symbol = RIGHT_QUOTED_STRING_DELIM;
-    return scan_right_quoted_string_delimiter(scanner, lexer);
+  switch (p_state) {
+    case IN_QUOTED_STRING:
+      if (valid_symbols[RIGHT_QUOTED_STRING_DELIM] && next_is(lexer, '|')) {
+        advance(lexer);
+        lexer->result_symbol = RIGHT_QUOTED_STRING_DELIM;
+        return scan_right_quoted_string_delimiter(scanner, lexer);
+      }
+
+      if (valid_symbols[START_INTERPOLATION] && next_is(lexer, '$')) {
+        advance(lexer);
+        lexer->result_symbol = START_INTERPOLATION;
+        return scan_left_interpolation_delim(scanner, lexer);
+      }
+    case IN_NOTHING:
+      if (valid_symbols[LEFT_QUOTED_STRING_DELIM] &&
+          (iswlower(lexer->lookahead) || next_is(lexer, '_') ||
+           next_is(lexer, '|'))) {
+        lexer->result_symbol = LEFT_QUOTED_STRING_DELIM;
+        return parse_left_quoted_string_delimiter(scanner, lexer);
+      }
+      if (next_is(lexer, '#') && lexer->get_column(lexer) == 0) {
+        return try_parse_line_number_directive(scanner, lexer);
+      }
+
+      if (valid_symbols[NULL_CHARACTER] && next_is(lexer, '\0') &&
+          !eof(lexer)) {
+        advance(lexer);
+        lexer->result_symbol = NULL_CHARACTER;
+        return true;
+      }
+      break;
   }
 
-  if (valid_symbols[LEFT_QUOTED_STRING_DELIM] &&
-      (iswlower(lexer->lookahead) || next_is(lexer, '_') ||
-       next_is(lexer, '|'))) {
-    lexer->result_symbol = LEFT_QUOTED_STRING_DELIM;
-    return parse_left_quoted_string_delimiter(scanner, lexer);
-  }
-  if (next_is(lexer, '#') && lexer->get_column(lexer) == 0) {
-    return try_parse_line_number_directive(scanner, lexer);
-  }
-
-  if (valid_symbols[NULL_CHARACTER] && next_is(lexer, '\0') && !eof(lexer)) {
-    advance(lexer);
-    lexer->result_symbol = NULL_CHARACTER;
-    return true;
-  }
   return false;
 }
 

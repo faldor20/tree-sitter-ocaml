@@ -130,3 +130,88 @@ let a=[%html {| $HTML{let a={a|${"hi"}|a}in a } |}];;
                                     (string_content))))))))
                       (value_path
                         (value_name)))))))))))))
+
+================================================================================
+Interpolation escaped
+================================================================================
+
+let a= {| $${let a={a|${"hi"}|a}in a } |};;
+let a= {| $ $HTML{let a={a|${"hi"}|a}in a } |};;
+let a= {| $$$HTML{let a={a|${"hi"}|a}in a } |};;
+let a= {| $ $$HTML{let a={a|${"hi"}|a}in a } |};;
+let a= {| $ {"hi"} $HTML{"hi"} |};;
+let a= {| $H {} $HTML{"hi" } |};;
+
+--------------------------------------------------------------------------------
+
+(compilation_unit
+  (value_definition
+    (let_binding
+      (value_name)
+      (quoted_string
+        (quoted_string_content
+          (string_interpolation_escape)
+          (string_interpolation
+            (string_interpolation_content
+              (string
+                (string_content))))))))
+  (value_definition
+    (let_binding
+      (value_name)
+      (quoted_string
+        (quoted_string_content
+          (string_interpolation
+            (module_name)
+            (string_interpolation_content
+              (let_expression
+                (value_definition
+                  (let_binding
+                    (value_name)
+                    (quoted_string
+                      (quoted_string_content
+                        (string_interpolation
+                          (string_interpolation_content
+                            (string
+                              (string_content))))))))
+                (value_path
+                  (value_name)))))))))
+  (value_definition
+    (let_binding
+      (value_name)
+      (quoted_string
+        (quoted_string_content
+          (string_interpolation_escape)
+          (string_interpolation
+            (string_interpolation_content
+              (string
+                (string_content))))))))
+  (value_definition
+    (let_binding
+      (value_name)
+      (quoted_string
+        (quoted_string_content
+          (string_interpolation_escape)
+          (string_interpolation
+            (string_interpolation_content
+              (string
+                (string_content))))))))
+  (value_definition
+    (let_binding
+      (value_name)
+      (quoted_string
+        (quoted_string_content
+          (string_interpolation
+            (module_name)
+            (string_interpolation_content
+              (string
+                (string_content))))))))
+  (value_definition
+    (let_binding
+      (value_name)
+      (quoted_string
+        (quoted_string_content
+          (string_interpolation
+            (module_name)
+            (string_interpolation_content
+              (string
+                (string_content)))))))))

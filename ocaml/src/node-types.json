@@ -4209,6 +4209,10 @@
         {
           "type": "string_interpolation",
           "named": true
+        },
+        {
+          "type": "string_interpolation_escape",
+          "named": true
         }
       ]
     }
@@ -5065,10 +5069,6 @@
     "named": false
   },
   {
-    "type": "$",
-    "named": false
-  },
-  {
     "type": "%",
     "named": false
   },
@@ -5078,10 +5078,6 @@
   },
   {
     "type": "'",
-    "named": false
-  },
-  {
-    "type": "'\"'",
     "named": false
   },
   {
@@ -5475,6 +5471,10 @@
   {
     "type": "sig",
     "named": false
+  },
+  {
+    "type": "string_interpolation_escape",
+    "named": true
   },
   {
     "type": "struct",

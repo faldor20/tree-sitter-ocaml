@@ -107,14 +107,16 @@ module.exports = grammar({
     _comment_content: $ =>
       repeat1(
         choice(
-          token.immediate(prec(1, '\'"\'')),
+          token.immediate(prec(1, /'[\"\{\[]'/)),
           alias($._string, "anon"),
           alias($.quoted_string, "anon"),
+          //grabs things that could be confused for quoted strings
+          prec(2, /\{[^a-z\|]/),
           alias($.quoted_extension, "anon"),
           //to make this more efficent we grab big chunks till we hit any of the chars that might start one of the other possibilities
-          token.immediate(/[^{('"*]+/),
+          token(/[^{('"*]+|[^*]/),
           //This is still needed because if all the other features aren't present we still need to be able to parse over a {('" 
-          /[^*]/,
+          //,
           /\*[^)]/
 
         )
@@ -1763,22 +1765,25 @@ module.exports = grammar({
       $._right_quoted_string_delim,
     ),
 
+
     quoted_string_content: $ => repeat1(choice(
-      prec(3, $.string_interpolation),
       token.immediate(/\s/),
       token.immediate(/\[@/),
       //TODO i think this is what is now stopping my string interpolation from ever running
       token.immediate(prec(1, /[^%@$|]+/)),
+      prec(4, $.string_interpolation_escape),
+      prec(2, $.string_interpolation),
       /%|@|\$|\|/,
       $._null,
       prec(2, $.conversion_specification),
       prec(2, $.pretty_printing_indication),
     )),
 
-    _string_interpolation_start: $ => seq("$", optional($.module_name), "{"),
+    string_interpolation_escape: $ =>/\$\$[A-Z]?[A-Z0-9_a-z']*\{/,
+    _string_interpolation_start: $ => seq($._start_interpolation, optional($.module_name), "{"),
     string_interpolation: $ => seq(
       //the alias is used for hightlighting queries
-      alias($._string_interpolation_start,"${"),
+      alias($._string_interpolation_start, "${"),
       alias($._expression, $.string_interpolation_content),
       alias("}", "}"),
     ),
@@ -1970,6 +1975,7 @@ module.exports = grammar({
   externals: $ => [
     $._left_quoted_string_delim,
     $._right_quoted_string_delim,
+    $._start_interpolation,
     $.line_number_directive,
     $._null
   ]

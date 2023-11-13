@@ -74,9 +74,8 @@ x
 (compilation_unit
   (comment)
   (comment)
-  (comment)
-  (comment)
-  (comment)
+  (comment
+    (escape_sequence))
   (comment)
   (comment)
   (comment)
