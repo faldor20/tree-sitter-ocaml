@@ -978,6 +978,21 @@
     ]
   },
   {
+    "type": "${",
+    "named": false,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": false,
+      "types": [
+        {
+          "type": "module_name",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "abstract_type",
     "named": true,
     "fields": {},
@@ -4477,13 +4492,9 @@
     "named": true,
     "fields": {},
     "children": {
-      "multiple": true,
+      "multiple": false,
       "required": true,
       "types": [
-        {
-          "type": "module_name",
-          "named": true
-        },
         {
           "type": "string_interpolation_content",
           "named": true

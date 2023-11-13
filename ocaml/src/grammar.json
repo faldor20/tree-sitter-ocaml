@@ -138,7 +138,7 @@
         "type": "CHOICE",
         "members": [
           {
-            "type": "TOKEN",
+            "type": "IMMEDIATE_TOKEN",
             "content": {
               "type": "PREC",
               "value": 1,
@@ -9267,10 +9267,6 @@
         ]
       }
     },
-    "interpolation_type": {
-      "type": "SYMBOL",
-      "name": "_capitalized_identifier"
-    },
     "_string_interpolation_start": {
       "type": "SEQ",
       "members": [
@@ -9300,8 +9296,13 @@
       "type": "SEQ",
       "members": [
         {
-          "type": "SYMBOL",
-          "name": "_string_interpolation_start"
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_string_interpolation_start"
+          },
+          "named": false,
+          "value": "${"
         },
         {
           "type": "ALIAS",

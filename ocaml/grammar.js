@@ -1778,7 +1778,7 @@ module.exports = grammar({
     _string_interpolation_start: $ => seq("$", optional($.module_name), "{"),
     string_interpolation: $ => seq(
       //the alias is used for hightlighting queries
-      $._string_interpolation_start,
+      alias($._string_interpolation_start,"${"),
       alias($._expression, $.string_interpolation_content),
       alias("}", "}"),
     ),
