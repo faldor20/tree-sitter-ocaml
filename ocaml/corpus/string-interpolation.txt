@@ -1,118 +1,132 @@
-===========================
+================================================================================
 Simple Interpolation
-===========================
+================================================================================
 
-{| %{hi} |};;
+{| ${hi} |};;
 
----
+--------------------------------------------------------------------------------
 
 (compilation_unit
   (expression_item
     (quoted_string
       (quoted_string_content
         (string_interpolation
-          (value_path
-            (value_name)))))))
+          (string_interpolation_content
+            (value_path
+              (value_name))))))))
 
-===========================
+================================================================================
 Nested interpolation
-===========================
+================================================================================
 
-{b|<div> %{let a={this|hi|this}in a } |b};;
+{b|<div> ${let a={this|hi|this}in a } |b};;
 
 
----
-    (compilation_unit
-      (expression_item
-        (quoted_string
-          (quoted_string_content
-            (string_interpolation
-              (let_expression
-                (value_definition
-                  (let_binding
-                    (value_name)
-                    (quoted_string
-                      (quoted_string_content))))
-                (value_path
-                  (value_name))))))))
+--------------------------------------------------------------------------------
 
-===========================
-Interpolation 2x Nested 
-===========================
+(compilation_unit
+  (expression_item
+    (quoted_string
+      (quoted_string_content
+        (string_interpolation
+          (string_interpolation_content
+            (let_expression
+              (value_definition
+                (let_binding
+                  (value_name)
+                  (quoted_string
+                    (quoted_string_content))))
+              (value_path
+                (value_name)))))))))
 
-{b|<div> %{let a={this| %{"string"} |this}in a } |b};;
+================================================================================
+Interpolation 2x Nested
+================================================================================
 
-{a|%{{b||b}}|a};;
----
-    (compilation_unit
-      (expression_item
-        (quoted_string
-          (quoted_string_content
-            (string_interpolation
-              (let_expression
-                (value_definition
-                  (let_binding
-                    (value_name)
-                    (quoted_string
-                      (quoted_string_content
-                        (string_interpolation
+{b|<div> ${let a={this| ${"string"} |this}in a } |b};;
+
+{a|${{b||b}}|a};;
+--------------------------------------------------------------------------------
+
+(compilation_unit
+  (expression_item
+    (quoted_string
+      (quoted_string_content
+        (string_interpolation
+          (string_interpolation_content
+            (let_expression
+              (value_definition
+                (let_binding
+                  (value_name)
+                  (quoted_string
+                    (quoted_string_content
+                      (string_interpolation
+                        (string_interpolation_content
                           (string
-                            (string_content)))))))
-                (value_path
-                  (value_name)))))))
-      (expression_item
-        (quoted_string
-          (quoted_string_content
-            (string_interpolation
-              (quoted_string))))))
-===========================
+                            (string_content))))))))
+              (value_path
+                (value_name))))))))
+  (expression_item
+    (quoted_string
+      (quoted_string_content
+        (string_interpolation
+          (string_interpolation_content
+            (quoted_string)))))))
+
+================================================================================
 Interpolation with module
-===========================
+================================================================================
 
-{|<div> %Int{ let a=1 in a }|};;
+{|<div> $Int{ let a=1 in a }|};;
 
 
----
+--------------------------------------------------------------------------------
 
-    (compilation_unit
-      (expression_item
-        (quoted_string
-          (quoted_string_content
-            (string_interpolation
-              (let_expression
-                (value_definition
-                  (let_binding
-                    (value_name)
-                    (number)))
-                (value_path
-                  (value_name))))))))
+(compilation_unit
+  (expression_item
+    (quoted_string
+      (quoted_string_content
+        (string_interpolation
+          (module_name)
+          (string_interpolation_content
+            (let_expression
+              (value_definition
+                (let_binding
+                  (value_name)
+                  (number)))
+              (value_path
+                (value_name)))))))))
 
-===========================
+================================================================================
 Interpolation within attribute
-===========================
+================================================================================
 
-let a=[%html {| %HTML{let a={a|%{"hi"}|a}in a } |}];;
+let a=[%html {| $HTML{let a={a|${"hi"}|a}in a } |}];;
 
----
-    (compilation_unit
-      (value_definition
-        (let_binding
-          (value_name)
-          (extension
-            (attribute_id)
-            (attribute_payload
-              (expression_item
-                (quoted_string
-                  (quoted_string_content
-                    (string_interpolation
-                      (let_expression
-                        (value_definition
-                          (let_binding
-                            (value_name)
-                            (quoted_string
-                              (quoted_string_content
-                                (string_interpolation
+--------------------------------------------------------------------------------
+
+(compilation_unit
+  (value_definition
+    (let_binding
+      (value_name)
+      (extension
+        (attribute_id)
+        (attribute_payload
+          (expression_item
+            (quoted_string
+              (quoted_string_content
+                (string_interpolation
+                  (module_name)
+                  (string_interpolation_content
+                    (let_expression
+                      (value_definition
+                        (let_binding
+                          (value_name)
+                          (quoted_string
+                            (quoted_string_content
+                              (string_interpolation
+                                (string_interpolation_content
                                   (string
-                                    (string_content)))))))
-                        (value_path
-                          (value_name))))))))))))
+                                    (string_content))))))))
+                      (value_path
+                        (value_name)))))))))))))

@@ -1052,10 +1052,6 @@
           "named": true
         },
         {
-          "type": "character_content",
-          "named": true
-        },
-        {
           "type": "quoted_string_content",
           "named": true
         }
@@ -3473,6 +3469,11 @@
     }
   },
   {
+    "type": "module_name",
+    "named": true,
+    "fields": {}
+  },
+  {
     "type": "module_parameter",
     "named": true,
     "fields": {
@@ -4476,11 +4477,15 @@
     "named": true,
     "fields": {},
     "children": {
-      "multiple": false,
+      "multiple": true,
       "required": true,
       "types": [
         {
-          "type": "_expression",
+          "type": "module_name",
+          "named": true
+        },
+        {
+          "type": "string_interpolation_content",
           "named": true
         }
       ]
@@ -5049,11 +5054,11 @@
     "named": false
   },
   {
-    "type": "%",
+    "type": "$",
     "named": false
   },
   {
-    "type": "%{",
+    "type": "%",
     "named": false
   },
   {
@@ -5065,7 +5070,15 @@
     "named": false
   },
   {
+    "type": "'\"'",
+    "named": false
+  },
+  {
     "type": "(",
+    "named": false
+  },
+  {
+    "type": "(*",
     "named": false
   },
   {
@@ -5379,10 +5392,6 @@
   {
     "type": "module",
     "named": false
-  },
-  {
-    "type": "module_name",
-    "named": true
   },
   {
     "type": "module_type_name",

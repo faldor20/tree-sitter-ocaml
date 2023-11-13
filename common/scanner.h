@@ -9,13 +9,8 @@
 #include <wctype.h>
 
 enum TokenType {
-  LEFT_INTERPOLATION_DELIM,
-  RIGHT_INTERPOLATION_DELIM,
   LEFT_QUOTED_STRING_DELIM,
   RIGHT_QUOTED_STRING_DELIM,
-  STRING_DELIM,
-  COMMENT_START,
-  COMMENT_BODY,
   LINE_NUMBER_DIRECTIVE,
   NULL_CHARACTER,
 };
@@ -431,7 +426,7 @@ static inline bool try_parse_line_number_directive(Scanner *scanner,
 static inline bool parse_start_string(Scanner *scanner, TSLexer *lexer) {
   advance(lexer);
   add_state(scanner, IN_STRING);
-  lexer->result_symbol = STRING_DELIM;
+  //lexer->result_symbol = STRING_DELIM;
   return true;
 }
 static inline bool scan_comment_body(Scanner *scanner, TSLexer *lexer) {
@@ -447,9 +442,10 @@ static inline bool scan_comment_body(Scanner *scanner, TSLexer *lexer) {
     return true;
   } else {
     advance(lexer);
-    while (
-        !(next_is(lexer, '*')||next_is(lexer, '\'')||next_is(lexer,'\'' )  || next_is(lexer, '"') || next_is(lexer, '{')) ||
-        eof(lexer)) {
+    while (!(next_is(lexer, '*') || next_is(lexer, '\'') ||
+             next_is(lexer, '\'') || next_is(lexer, '"') ||
+             next_is(lexer, '{')) ||
+           eof(lexer)) {
       if (next_is(lexer, '(')) {
         mark_end(lexer);
         advance(lexer);
@@ -469,7 +465,7 @@ static inline bool scan_comment_body(Scanner *scanner, TSLexer *lexer) {
 
 static bool scan(Scanner *scanner, TSLexer *lexer, const bool *valid_symbols) {
 
-    while (iswspace(lexer->lookahead)) {
+  while (iswspace(lexer->lookahead)) {
     skip(lexer);
   }
   enum ParserState p_state = IN_NOTHING;
@@ -478,88 +474,28 @@ static bool scan(Scanner *scanner, TSLexer *lexer, const bool *valid_symbols) {
     p_state = get_current_state(scanner)->state;
   }
 
-  switch (p_state) {
-    case IN_QUOTED_STRING:
-      if (valid_symbols[LEFT_INTERPOLATION_DELIM] && next_is(lexer, '%')) {
-        advance(lexer);
-        lexer->result_symbol = LEFT_INTERPOLATION_DELIM;
-        return scan_left_interpolation_delim(scanner, lexer);
-      }
-      if (valid_symbols[RIGHT_QUOTED_STRING_DELIM] && next_is(lexer, '|')) {
-        advance(lexer);
-        lexer->result_symbol = RIGHT_QUOTED_STRING_DELIM;
-        return scan_right_quoted_string_delimiter(scanner, lexer);
-      }
-      break;
-
-    case IN_STRING:
-
-      if (valid_symbols[STRING_DELIM] && next_is(lexer, '"')) {
-        advance(lexer);
-        remove_state(scanner);
-        lexer->result_symbol = STRING_DELIM;
-        // if we might be coming to the end of the comment
-        return true;
-      }
-      break;
-    case IN_COMMENT:
-      if (valid_symbols[STRING_DELIM] && next_is(lexer, '"')) {
-        return parse_start_string(scanner, lexer);
-      }
-      if (valid_symbols[LEFT_QUOTED_STRING_DELIM] &&
-          (iswlower(lexer->lookahead) || next_is(lexer, '_') ||
-           next_is(lexer, '|'))) {
-        lexer->result_symbol = LEFT_QUOTED_STRING_DELIM;
-        return parse_left_quoted_string_delimiter(scanner, lexer);
-      }
-      break;
-    case IN_INTERPOLATION:
-      if (valid_symbols[RIGHT_INTERPOLATION_DELIM] && next_is(lexer, '}')) {
-        advance(lexer);
-        lexer->result_symbol = RIGHT_INTERPOLATION_DELIM;
-        return scan_right_interpolation_delim(scanner, lexer);
-      }
-    case IN_NOTHING:
-
-      if (valid_symbols[COMMENT_START] && next_is(lexer, '(')) {
-        
-        advance(lexer);
-        if (next_is(lexer, '*')) {
-          advance(lexer);
-          lexer->result_symbol = COMMENT_START;
-          return true;
-        }
-        return false;
-      }
-      if (valid_symbols[LEFT_QUOTED_STRING_DELIM] &&
-          (iswlower(lexer->lookahead) || next_is(lexer, '_') ||
-           next_is(lexer, '|'))) {
-        lexer->result_symbol = LEFT_QUOTED_STRING_DELIM;
-        return parse_left_quoted_string_delimiter(scanner, lexer);
-      }
-      if (valid_symbols[STRING_DELIM] && next_is(lexer, '"')) {
-        return parse_start_string(scanner, lexer);
-      }
-      if (next_is(lexer, '#') && lexer->get_column(lexer) == 0) {
-        return try_parse_line_number_directive(scanner, lexer);
-      }
-      // TODO: i may need to stop this from reading if we see a '(' because that
-      // could signal another comment's start
-      if (false&&valid_symbols[COMMENT_BODY] &&
-          !(next_is(lexer, '\'') || next_is(lexer, '{')||next_is(lexer,'(') ||
-            next_is(lexer, '"'))) {
-        lexer->result_symbol = COMMENT_BODY;
-      return scan_comment_body(scanner,lexer );
-      }
-      if (valid_symbols[NULL_CHARACTER] && next_is(lexer, '\0') &&
-          !eof(lexer)) {
-        advance(lexer);
-        lexer->result_symbol = NULL_CHARACTER;
-        return true;
-      }
-      break;
+  if (valid_symbols[RIGHT_QUOTED_STRING_DELIM] && next_is(lexer, '|')) {
+    advance(lexer);
+    lexer->result_symbol = RIGHT_QUOTED_STRING_DELIM;
+    return scan_right_quoted_string_delimiter(scanner, lexer);
   }
 
+  if (valid_symbols[LEFT_QUOTED_STRING_DELIM] &&
+      (iswlower(lexer->lookahead) || next_is(lexer, '_') ||
+       next_is(lexer, '|'))) {
+    lexer->result_symbol = LEFT_QUOTED_STRING_DELIM;
+    return parse_left_quoted_string_delimiter(scanner, lexer);
+  }
+  if (next_is(lexer, '#') && lexer->get_column(lexer) == 0) {
+    return try_parse_line_number_directive(scanner, lexer);
+  }
+  // TODO: i may need to stop this from reading if we see a '(' because that
+  // could signal another comment's start
+  if (valid_symbols[NULL_CHARACTER] && next_is(lexer, '\0') && !eof(lexer)) {
+    advance(lexer);
+    lexer->result_symbol = NULL_CHARACTER;
+    return true;
+  }
   return false;
 }
 

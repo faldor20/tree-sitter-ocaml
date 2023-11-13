@@ -104,24 +104,27 @@ module.exports = grammar({
         repeat(';;')
       )
     ),
-    //TODO use the string and string quote parsers to parse the unwanted tokens out 
-  comment: $=>seq(
-      $._comment_start,
-      repeat(
+    _comment_content: $ =>
+      repeat1(
         choice(
-          alias($._string,"anon"),
-          alias($.quoted_string,"anon"),
-          alias($.quoted_extension,"anon"),
-          alias($.character,"anon"),
+          token.immediate(prec(1, '\'"\'')),
+          alias($._string, "anon"),
+          alias($.quoted_string, "anon"),
+          alias($.quoted_extension, "anon"),
           //to make this more efficent we grab big chunks till we hit any of the chars that might start one of the other possibilities
-          /[^{('"*]+/,    
+          token.immediate(/[^{('"*]+/),
           //This is still needed because if all the other features aren't present we still need to be able to parse over a {('" 
-          /[^*]/,    
-           /\*[^)]/         
+          /[^*]/,
+          /\*[^)]/
 
         )
       ),
+    //TODO use the string and string quote parsers to parse the unwanted tokens out 
+    comment: $ => seq(
+      '(*',
+      optional($._comment_content),
       '*)'
+
     ),
 
 
@@ -1094,7 +1097,7 @@ module.exports = grammar({
         }
       ]
 
-      return choice(...table.map(({operator, precedence, associativity}) =>
+      return choice(...table.map(({ operator, precedence, associativity }) =>
         prec[associativity](precedence, seq(
           field('left', $._expression),
           field('operator', operator),
@@ -1731,69 +1734,56 @@ module.exports = grammar({
     character: $ => seq("'", $.character_content, "'"),
 
     character_content: $ => choice(
-      /[^\\']/,
+      token.immediate(prec(1, /[^\\']/)),
       $._null,
-      $.escape_sequence
+      prec(1, $.escape_sequence)
     ),
 
-    string: $ => seq('"', optional($.string_content), '"'),
-    _string_content:$=>alias($.string_content,"content"),
-    _string: $ => seq('"', optional($._string_content), '"'),
+    string: $ => seq('"', optional($.string_content), token.immediate('"')),
+    _string_content: $ => alias($.string_content, "content"),
+    _string: $ => seq('"', optional($._string_content), token.immediate('"')),
 
     string_content: $ => repeat1(choice(
       token.immediate(/\s/),
       token.immediate(/\[@/),
-      /[^\\"%@]+|%|@/,
-      $._null,
-      $.escape_sequence,
-      alias(/\\u\{[0-9A-Fa-f]+\}/, $.escape_sequence),
-      alias(/\\\n[\t ]*/, $.escape_sequence),
-      $.conversion_specification,
-      $.pretty_printing_indication
+      token.immediate(prec(1, /[^\\"%@]+/)),
+
+      /%|@/, $._null,
+      prec(2, $.escape_sequence),
+      prec(2, alias(/\\u\{[0-9A-Fa-f]+\}/, $.escape_sequence)),
+      prec(2, alias(/\\\n[\t ]*/, $.escape_sequence)),
+      prec(2, $.conversion_specification),
+      prec(2, $.pretty_printing_indication)
     )),
-
-    //TODO for some reason this won't match {id||id}, when i put only that in it does work though, maybe i should try to simplify?
-    //TODO okay this is impossible i need to go back to the stateful parser and just impliment something identical to what i wrote in ocaml with a stack of enums or something 
-
-    // _quote_string_start:$=>seq('{',optional($._identifier),'|'),
-    // _quote_string_end:$=>seq('|',optional($._identifier),'}'),
-
-    // quoted_string: $ => seq($._quote_string_start, optional($.quoted_string_content), $._quote_string_end),
-    // quoted_string: $ => seq('{',/[a-z]*/,'|',optional($.quoted_string_content) ,'|',/[a-z]*/,'}' ),
 
     quoted_string: $ => seq('{', $._quoted_string, '}'),
     _quoted_string: $ => seq(
       $._left_quoted_string_delim,
       optional($.quoted_string_content),
       $._right_quoted_string_delim,
-    ),  
-
-    quoted_string_content: $ => repeat1(choice(
-      $.string_interpolation,
-      token.immediate(/\s/),
-      token.immediate(/\[@/),
-      /[^%@|]+|%|@|\|/,
-      $._null,
-      $.conversion_specification,
-      $.pretty_printing_indication,
-    )),
-
-    interpolation_type: $=>$._capitalized_identifier,
-    string_interpolation: $ => seq(
-      //the alias is used for hightlighting queries
-      alias($._left_interpolation_delim,"%{"),
-        $._expression,
-      alias($._right_interpolation_delim,"}"),
     ),
 
-    // string_interpolation: $ => seq(
-    //   '%',
-    //     optional($.interpolation_type),
-    //   '{',
-    //     $._expression,
-    //   '}',
-    // ),
-        escape_sequence: $ => choice(
+    quoted_string_content: $ => repeat1(choice(
+      prec(3, $.string_interpolation),
+      token.immediate(/\s/),
+      token.immediate(/\[@/),
+      //TODO i think this is what is now stopping my string interpolation from ever running
+      token.immediate(prec(1, /[^%@$|]+/)),
+      /%|@|\$|\|/,
+      $._null,
+      prec(2, $.conversion_specification),
+      prec(2, $.pretty_printing_indication),
+    )),
+
+    _string_interpolation_start: $ => seq("$", optional($.module_name), "{"),
+    string_interpolation: $ => seq(
+      //the alias is used for hightlighting queries
+      $._string_interpolation_start,
+      alias($._expression, $.string_interpolation_content),
+      alias("}", "}"),
+    ),
+
+    escape_sequence: $ => choice(
       /\\[\\"'ntbr ]/,
       /\\[0-9][0-9][0-9]/,
       /\\x[0-9A-Fa-f][0-9A-Fa-f]/,
@@ -1959,6 +1949,7 @@ module.exports = grammar({
     _type_constructor: $ => alias($._identifier, $.type_constructor),
     _instance_variable_name: $ => alias($._identifier, $.instance_variable_name),
 
+    module_name: $ => $._capitalized_identifier,
     _module_name: $ => alias($._capitalized_identifier, $.module_name),
     _module_type_name: $ => alias(choice($._capitalized_identifier, $._identifier), $.module_type_name),
     _constructor_name: $ => choice(
@@ -1977,13 +1968,8 @@ module.exports = grammar({
   },
 
   externals: $ => [
-    $._left_interpolation_delim,
-    $._right_interpolation_delim,
     $._left_quoted_string_delim,
     $._right_quoted_string_delim,
-    '"',
-    $._comment_start,
-    $._comment_body,
     $.line_number_directive,
     $._null
   ]
