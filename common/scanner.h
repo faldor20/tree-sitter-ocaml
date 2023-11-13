@@ -17,9 +17,6 @@ enum TokenType {
 
 enum ParserState {
   IN_QUOTED_STRING,
-  IN_STRING,
-  IN_COMMENT,
-  IN_INTERPOLATION,
   IN_NOTHING,
 };
 
@@ -64,25 +61,6 @@ static inline void skip(TSLexer *lexer) { lexer->advance(lexer, true); }
 
 static inline bool eof(TSLexer *lexer) { return lexer->eof(lexer); }
 
-static void scan_string(TSLexer *lexer) {
-  for (;;) {
-    switch (lexer->lookahead) {
-      case '\\':
-        advance(lexer);
-        advance(lexer);
-        break;
-      case '"':
-        advance(lexer);
-        return;
-      case '\0':
-        if (eof(lexer)) return;
-        advance(lexer);
-        break;
-      default:
-        advance(lexer);
-    }
-  }
-}
 static inline bool next_is(TSLexer *lexer, char c) {
   return lexer->lookahead == c;
 }
@@ -120,212 +98,6 @@ static bool scan_right_quoted_string_delimiter(Scanner *scanner,
   // we don't advance here because we want to leave the '}'
   remove_state(scanner);
   return true;
-}
-static bool scan_left_interpolation_delim(Scanner *scanner, TSLexer *lexer) {
-  // scan the Module name if it exists
-  if (iswupper(lexer->lookahead)) {
-    advance(lexer);
-    while (iswalpha(lexer->lookahead)) {
-      advance(lexer);
-    }
-  }
-
-  if (lexer->lookahead != '{') return false;
-
-  advance(lexer);
-  add_state(scanner, IN_INTERPOLATION);
-  return true;
-}
-
-static bool scan_right_interpolation_delim(Scanner *scanner, TSLexer *lexer) {
-  remove_state(scanner);
-  return true;
-}
-
-static bool scan_quoted_string(Scanner *scanner, TSLexer *lexer) {
-  if (!parse_left_quoted_string_delimiter(scanner, lexer)) return false;
-
-  for (;;) {
-    switch (lexer->lookahead) {
-      // TODO this should block while we scan all the consents of the
-      // interpolation and then re can return
-      case '|':
-        advance(lexer);
-        if (scan_right_quoted_string_delimiter(scanner, lexer)) return true;
-        break;
-      case '\0':
-        if (eof(lexer)) return false;
-        advance(lexer);
-        break;
-      default:
-        advance(lexer);
-    }
-  }
-}
-
-static char scan_character(TSLexer *lexer) {
-  char last = 0;
-
-  switch (lexer->lookahead) {
-    case '\\':
-      advance(lexer);
-      if (iswdigit(lexer->lookahead)) {
-        advance(lexer);
-        for (size_t i = 0; i < 2; i++) {
-          if (!iswdigit(lexer->lookahead)) return 0;
-          advance(lexer);
-        }
-      } else {
-        switch (lexer->lookahead) {
-          case 'x':
-            advance(lexer);
-            for (size_t i = 0; i < 2; i++) {
-              if (!iswdigit(lexer->lookahead) &&
-                  (towupper(lexer->lookahead) < 'A' ||
-                   towupper(lexer->lookahead) > 'F')) {
-                return 0;
-              }
-              advance(lexer);
-            }
-            break;
-          case 'o':
-            advance(lexer);
-            for (size_t i = 0; i < 3; i++) {
-              if (!iswdigit(lexer->lookahead) || lexer->lookahead > '7') {
-                return 0;
-              }
-              advance(lexer);
-            }
-            break;
-          case '\'':
-          case '"':
-          case '\\':
-          case 'n':
-          case 't':
-          case 'b':
-          case 'r':
-          case ' ':
-            last = lexer->lookahead;
-            advance(lexer);
-            break;
-          default:
-            return 0;
-        }
-      }
-      break;
-    case '\'':
-      break;
-    case '\0':
-      if (eof(lexer)) return 0;
-      advance(lexer);
-      break;
-    default:
-      last = lexer->lookahead;
-      advance(lexer);
-  }
-
-  if (next_is(lexer, '\'')) {
-    advance(lexer);
-    return 0;
-  }
-  return last;
-}
-
-static bool scan_identifier(TSLexer *lexer) {
-  if (iswalpha(lexer->lookahead) || next_is(lexer, '_')) {
-    advance(lexer);
-    while (iswalnum(lexer->lookahead) || next_is(lexer, '_') ||
-           next_is(lexer, '\'')) {
-      advance(lexer);
-    }
-    return true;
-  }
-  return false;
-}
-static bool scan_extattrident(TSLexer *lexer) {
-  while (scan_identifier(lexer)) {
-    if (lexer->lookahead != '.') return true;
-    advance(lexer);
-  }
-  return false;
-}
-
-static bool scan_comment(Scanner *scanner, TSLexer *lexer) {
-  char last = 0;
-
-  if (lexer->lookahead != '*') return false;
-  advance(lexer);
-
-  for (;;) {
-    switch (last ? last : lexer->lookahead) {
-      case '(':
-        if (last) {
-          last = 0;
-        } else {
-          advance(lexer);
-        }
-        scan_comment(scanner, lexer);
-        break;
-      case '*':
-        if (last) {
-          last = 0;
-        } else {
-          advance(lexer);
-        }
-        if (next_is(lexer, ')')) {
-          advance(lexer);
-          return true;
-        }
-        break;
-      case '\'':
-        if (last) {
-          last = 0;
-        } else {
-          advance(lexer);
-        }
-        last = scan_character(lexer);
-        break;
-      case '"':
-        if (last) {
-          last = 0;
-        } else {
-          advance(lexer);
-        }
-        scan_string(lexer);
-        break;
-      case '{':
-        if (last) {
-          last = 0;
-        } else {
-          advance(lexer);
-        }
-        if (next_is(lexer, '%')) {
-          advance(lexer);
-          if (next_is(lexer, '%')) advance(lexer);
-          if (scan_extattrident(lexer)) {
-            while (iswspace(lexer->lookahead)) advance(lexer);
-          } else {
-            break;
-          }
-        }
-        if (scan_quoted_string(scanner, lexer)) advance(lexer);
-        break;
-      case '\0':
-        if (eof(lexer)) return false;
-        if (last) {
-          last = 0;
-        } else {
-          advance(lexer);
-        }
-        break;
-      default:
-        if (scan_identifier(lexer) || last) {
-          last = 0;
-        } else {
-          advance(lexer);
-        }
-    }
-  }
 }
 
 static Scanner *create() {
@@ -423,48 +195,7 @@ static inline bool try_parse_line_number_directive(Scanner *scanner,
   return true;
 }
 
-static inline bool parse_start_string(Scanner *scanner, TSLexer *lexer) {
-  advance(lexer);
-  add_state(scanner, IN_STRING);
-  //lexer->result_symbol = STRING_DELIM;
-  return true;
-}
-static inline bool scan_comment_body(Scanner *scanner, TSLexer *lexer) {
-  // if we might be coming to the end of the comment
-  if (next_is(lexer, '*')) {
-    mark_end(lexer);
-    advance(lexer);
-    if (next_is(lexer, ')')) {
-      return false;
-    }
-    // we need to move the end else we will ge stuck here
-    mark_end(lexer);
-    return true;
-  } else {
-    advance(lexer);
-    while (!(next_is(lexer, '*') || next_is(lexer, '\'') ||
-             next_is(lexer, '\'') || next_is(lexer, '"') ||
-             next_is(lexer, '{')) ||
-           eof(lexer)) {
-      if (next_is(lexer, '(')) {
-        mark_end(lexer);
-        advance(lexer);
-        if (next_is(lexer, '*')) {
-          return true;
-        }
-
-      } else {
-        advance(lexer);
-      }
-    }
-    mark_end(lexer);
-
-    return true;
-  }
-}
-
 static bool scan(Scanner *scanner, TSLexer *lexer, const bool *valid_symbols) {
-
   while (iswspace(lexer->lookahead)) {
     skip(lexer);
   }
@@ -489,8 +220,7 @@ static bool scan(Scanner *scanner, TSLexer *lexer, const bool *valid_symbols) {
   if (next_is(lexer, '#') && lexer->get_column(lexer) == 0) {
     return try_parse_line_number_directive(scanner, lexer);
   }
-  // TODO: i may need to stop this from reading if we see a '(' because that
-  // could signal another comment's start
+
   if (valid_symbols[NULL_CHARACTER] && next_is(lexer, '\0') && !eof(lexer)) {
     advance(lexer);
     lexer->result_symbol = NULL_CHARACTER;
